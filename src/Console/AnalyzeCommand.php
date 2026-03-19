@@ -10,7 +10,7 @@ class AnalyzeCommand extends Command
 {
     protected $signature = 'debug:analyze {--file= : Path to the log file to analyze}';
 
-    protected $description = 'Analyze Laravel errors using local AI (Claude, Gemini, or Copilot)';
+    protected $description = 'Analyze Laravel errors using local AI (Claude, Gemini, Copilot, or Codex)';
 
     /**
      * Maximum number of bytes read from the log file to keep memory usage bounded.

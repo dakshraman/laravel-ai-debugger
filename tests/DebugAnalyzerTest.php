@@ -4,7 +4,6 @@ namespace Dakshraman\AIDebugger\Tests;
 
 use Dakshraman\AIDebugger\Services\DebugAnalyzer;
 use Dakshraman\AIDebugger\AI\AIInterface;
-use Dakshraman\AIDebugger\AI\AIDriverManager;
 
 class DebugAnalyzerTest extends TestCase
 {
@@ -21,9 +20,8 @@ class DebugAnalyzerTest extends TestCase
             }
         };
 
-        $analyzer = $this->makeAnalyzerWithDriver($mockDriver);
-
-        $result = $analyzer->analyze('Undefined variable $foo');
+        $analyzer = new DebugAnalyzer($mockDriver);
+        $result   = $analyzer->analyze('Undefined variable $foo');
 
         $this->assertArrayHasKey('root_cause', $result);
         $this->assertArrayHasKey('fix', $result);
@@ -40,35 +38,10 @@ class DebugAnalyzerTest extends TestCase
             }
         };
 
-        $analyzer = $this->makeAnalyzerWithDriver($mockDriver);
-
-        $result = $analyzer->analyze('Some error trace');
+        $analyzer = new DebugAnalyzer($mockDriver);
+        $result   = $analyzer->analyze('Some error trace');
 
         $this->assertArrayHasKey('raw', $result);
         $this->assertEquals('Unable to process at this time.', $result['raw']);
-    }
-
-    /**
-     * Create a DebugAnalyzer that uses the given driver, bypassing AIDriverManager.
-     */
-    private function makeAnalyzerWithDriver(AIInterface $driver): DebugAnalyzer
-    {
-        return new class ($driver) extends DebugAnalyzer {
-            public function __construct(private AIInterface $driver) {}
-
-            public function analyze(string $trace): array
-            {
-                $raw = $this->driver->analyze($trace);
-
-                return $this->normalize($raw);
-            }
-
-            protected function normalize(string $response): array
-            {
-                $decoded = json_decode($response, true);
-
-                return $decoded ?? ['raw' => $response];
-            }
-        };
     }
 }

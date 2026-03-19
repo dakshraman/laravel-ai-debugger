@@ -15,9 +15,14 @@ class AIDebuggerServiceProvider extends ServiceProvider
             'ai-debugger'
         );
 
-        $this->app->singleton('ai-debugger', function () {
+        $this->app->singleton(DebugAnalyzer::class, function () {
             return new DebugAnalyzer();
         });
+
+        // Allow both the string alias ('ai-debugger') used by the Facade and
+        // the class name (DebugAnalyzer::class) used by command type-hint
+        // injection to resolve to the same singleton.
+        $this->app->alias(DebugAnalyzer::class, 'ai-debugger');
     }
 
     public function boot(): void

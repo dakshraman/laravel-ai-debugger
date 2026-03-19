@@ -3,12 +3,15 @@
 namespace Dakshraman\AIDebugger\Services;
 
 use Dakshraman\AIDebugger\AI\AIDriverManager;
+use Dakshraman\AIDebugger\AI\AIInterface;
 
 class DebugAnalyzer
 {
+    public function __construct(private readonly ?AIInterface $driver = null) {}
+
     public function analyze(string $trace): array
     {
-        $driver = AIDriverManager::resolve();
+        $driver = $this->driver ?? AIDriverManager::resolve();
 
         $raw = $driver->analyze($trace);
 

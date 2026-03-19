@@ -48,6 +48,8 @@ abstract class BaseDriver implements AIInterface
 
         $output = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
+        // Drain stderr so the child process never blocks waiting for the parent to read it.
+        stream_get_contents($pipes[2]);
         fclose($pipes[2]);
 
         proc_close($process);
