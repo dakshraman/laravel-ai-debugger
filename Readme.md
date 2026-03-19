@@ -3,14 +3,14 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/dakshraman/laravel-ai-debugger.svg?style=flat-square)](https://packagist.org/packages/dakshraman/laravel-ai-debugger)
 [![License](https://img.shields.io/packagist/l/dakshraman/laravel-ai-debugger.svg?style=flat-square)](LICENSE)
 
-A local-first AI debugging assistant for Laravel using CLI tools like **Claude**, **Gemini CLI**, and **GitHub Copilot**. Zero API cost — everything runs through your locally installed CLI tools.
+A local-first AI debugging assistant for Laravel using CLI tools like **Claude**, **Gemini CLI**, **GitHub Copilot**, and **OpenAI Codex**. Zero API cost — everything runs through your locally installed CLI tools.
 
 ---
 
 ## Features
 
 - ✅ Local AI-powered error analysis (no API key required)
-- ✅ Works with Claude, Gemini CLI, and GitHub Copilot
+- ✅ Works with Claude, Gemini CLI, GitHub Copilot, and OpenAI Codex
 - ✅ Plug-and-play Laravel package with auto-discovery
 - ✅ Artisan command: `php artisan debug:analyze`
 - ✅ Facade for inline usage: `AIDebugger::analyze($trace)`
@@ -26,6 +26,7 @@ A local-first AI debugging assistant for Laravel using CLI tools like **Claude**
   - [claude](https://github.com/anthropics/anthropic-tools) — Anthropic Claude CLI
   - [gemini](https://ai.google.dev/) — Google Gemini CLI
   - [gh copilot](https://docs.github.com/en/copilot/github-copilot-in-the-cli) — GitHub Copilot CLI
+  - [codex](https://github.com/openai/codex) — OpenAI Codex CLI
 
 ---
 
@@ -52,7 +53,7 @@ This publishes `config/ai-debugger.php`.
 Set your preferred AI driver in `.env`:
 
 ```env
-AI_DEBUGGER_DRIVER=claude   # Options: claude, gemini, copilot
+AI_DEBUGGER_DRIVER=claude   # Options: claude, gemini, copilot, codex
 ```
 
 Or edit `config/ai-debugger.php` directly:

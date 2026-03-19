@@ -4,8 +4,9 @@ namespace Dakshraman\AIDebugger\Tests;
 
 use Dakshraman\AIDebugger\AI\AIDriverManager;
 use Dakshraman\AIDebugger\AI\Drivers\ClaudeDriver;
-use Dakshraman\AIDebugger\AI\Drivers\GeminiDriver;
+use Dakshraman\AIDebugger\AI\Drivers\CodexDriver;
 use Dakshraman\AIDebugger\AI\Drivers\CopilotDriver;
+use Dakshraman\AIDebugger\AI\Drivers\GeminiDriver;
 
 class AIDriverManagerTest extends TestCase
 {
@@ -25,6 +26,15 @@ class AIDriverManagerTest extends TestCase
         $driver = AIDriverManager::resolve();
 
         $this->assertInstanceOf(GeminiDriver::class, $driver);
+    }
+
+    public function test_resolves_codex_driver(): void
+    {
+        config(['ai-debugger.driver' => 'codex']);
+
+        $driver = AIDriverManager::resolve();
+
+        $this->assertInstanceOf(CodexDriver::class, $driver);
     }
 
     public function test_resolves_copilot_driver(): void

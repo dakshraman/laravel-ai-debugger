@@ -7,7 +7,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | The AI CLI driver to use for debugging analysis.
-    | Supported: "claude", "gemini", "copilot"
+    | Supported: "claude", "gemini", "copilot", "codex"
     |
     */
     'driver' => env('AI_DEBUGGER_DRIVER', 'claude'),
