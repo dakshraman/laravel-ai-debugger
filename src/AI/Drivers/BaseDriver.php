@@ -68,10 +68,11 @@ abstract class BaseDriver implements AIInterface
         stream_set_blocking($pipes[1], false);
         stream_set_blocking($pipes[2], false);
 
-        $written   = 0;
-        $total     = strlen($prompt);
-        $output    = '';
-        $stdinOpen = true;
+        $written      = 0;
+        $total        = strlen($prompt);
+        $output       = '';
+        $stderrOutput = '';
+        $stdinOpen    = true;
 
         while ($stdinOpen || ! feof($pipes[1])) {
             $read   = [$pipes[1], $pipes[2]];
@@ -109,7 +110,11 @@ abstract class BaseDriver implements AIInterface
                         $output .= $chunk;
                     }
                 } else {
-                    fread($pipe, self::CHUNK_SIZE);
+                    // Capture stderr so we can surface it in error messages.
+                    $chunk = fread($pipe, self::CHUNK_SIZE);
+                    if ($chunk !== false) {
+                        $stderrOutput .= $chunk;
+                    }
                 }
             }
         }
@@ -120,7 +125,7 @@ abstract class BaseDriver implements AIInterface
         fclose($pipes[1]);
         // Switch stderr back to blocking so stream_get_contents drains it fully.
         stream_set_blocking($pipes[2], true);
-        stream_get_contents($pipes[2]);
+        $stderrOutput .= (string) stream_get_contents($pipes[2]);
         fclose($pipes[2]);
 
         $exitCode = proc_close($process);
@@ -137,6 +142,15 @@ abstract class BaseDriver implements AIInterface
         // all supported PHP versions.
         if ($exitCode === 127) {
             throw new RuntimeException('Failed to start process: ' . $this->executable() . ' (command not found)');
+        }
+
+        // A non-zero exit code with no stdout indicates the AI CLI tool failed.
+        // Include any stderr output so the caller can surface a helpful message.
+        if ($exitCode !== 0) {
+            $detail = $stderrOutput !== '' ? ': ' . trim($stderrOutput) : '';
+            throw new RuntimeException(
+                'Process exited with code ' . $exitCode . $detail
+            );
         }
 
         return 'No response';
