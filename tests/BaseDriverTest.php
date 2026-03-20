@@ -127,6 +127,8 @@ class BaseDriverTest extends TestCase
 
     public function test_analyze_returns_no_response_when_subprocess_produces_no_output(): void
     {
+        // This test is superseded by test_analyze_returns_no_response_when_subprocess_exits_zero_with_no_output.
+        // Kept for backward compatibility.
         $driver = $this->phpDriver('// noop');
 
         $this->assertSame('No response', $driver->analyze('error'));
@@ -194,5 +196,37 @@ class BaseDriverTest extends TestCase
         $this->expectException(RuntimeException::class);
 
         $driver->analyze('error');
+    }
+
+    public function test_analyze_throws_runtime_exception_with_exit_code_when_subprocess_fails(): void
+    {
+        // Subprocess exits with code 1 and writes nothing to stdout.
+        $driver = $this->phpDriver('exit(1);');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/exit.*code.*1/i');
+
+        $driver->analyze('error');
+    }
+
+    public function test_analyze_throws_runtime_exception_with_stderr_when_subprocess_fails(): void
+    {
+        // Subprocess exits with code 1 and writes a diagnostic to stderr.
+        $driver = $this->phpDriver('fwrite(STDERR, "API key not configured"); exit(1);');
+
+        try {
+            $driver->analyze('error');
+            $this->fail('Expected RuntimeException was not thrown');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('API key not configured', $e->getMessage());
+        }
+    }
+
+    public function test_analyze_returns_no_response_when_subprocess_exits_zero_with_no_output(): void
+    {
+        // Subprocess exits cleanly (code 0) but writes nothing – a genuine "no response".
+        $driver = $this->phpDriver('// noop');
+
+        $this->assertSame('No response', $driver->analyze('error'));
     }
 }

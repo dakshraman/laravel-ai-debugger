@@ -40,9 +40,22 @@ class AnalyzeCommand extends Command
         $entries = LogParser::extractErrors($log);
         $input   = empty($entries) ? $log : implode("\n---\n", $entries);
 
-        $result = $analyzer->analyze($input);
+        try {
+            $result = $analyzer->analyze($input);
+        } catch (\RuntimeException $e) {
+            $this->error('AI analysis failed: ' . $e->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+        if (! isset($result['root_cause'])) {
+            $this->warn(
+                'The AI driver did not return a structured analysis. '
+                . 'Ensure your AI CLI tool is installed and properly configured.'
+            );
+        }
 
         return self::SUCCESS;
     }

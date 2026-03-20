@@ -69,4 +69,45 @@ class AnalyzeCommandTest extends TestCase
         $this->artisan('debug:analyze')
             ->assertExitCode(Command::FAILURE);
     }
+
+    public function test_returns_failure_and_shows_error_when_ai_driver_throws(): void
+    {
+        file_put_contents(
+            $this->tmpFile,
+            '[2024-01-15 10:00:00] local.ERROR: Something went wrong'
+        );
+
+        $mockDriver = new class implements AIInterface {
+            public function analyze(string $input): string
+            {
+                throw new \RuntimeException('Process exited with code 1: API key not configured');
+            }
+        };
+
+        $this->app->instance(DebugAnalyzer::class, new DebugAnalyzer($mockDriver));
+
+        $this->artisan('debug:analyze', ['--file' => $this->tmpFile])
+            ->assertExitCode(Command::FAILURE);
+    }
+
+    public function test_warns_when_ai_driver_returns_no_structured_analysis(): void
+    {
+        file_put_contents(
+            $this->tmpFile,
+            '[2024-01-15 10:00:00] local.ERROR: Something went wrong'
+        );
+
+        $mockDriver = new class implements AIInterface {
+            public function analyze(string $input): string
+            {
+                return 'No response';
+            }
+        };
+
+        $this->app->instance(DebugAnalyzer::class, new DebugAnalyzer($mockDriver));
+
+        $this->artisan('debug:analyze', ['--file' => $this->tmpFile])
+            ->expectsOutputToContain('did not return a structured analysis')
+            ->assertExitCode(Command::SUCCESS);
+    }
 }
