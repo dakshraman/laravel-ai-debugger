@@ -12,6 +12,16 @@ use RuntimeException;
 abstract class BaseDriver implements AIInterface
 {
     /**
+     * Bytes transferred per read/write call when streaming data to/from the subprocess.
+     */
+    private const CHUNK_SIZE = 8192;
+
+    /**
+     * Seconds stream_select() waits for a pipe to become ready before retrying.
+     */
+    private const STREAM_SELECT_TIMEOUT = 5;
+
+    /**
      * Name of the CLI executable to invoke (e.g. "claude", "gemini").
      */
     abstract protected function executable(): string;
@@ -37,28 +47,103 @@ abstract class BaseDriver implements AIInterface
             2 => ['pipe', 'w'],
         ];
 
-        $process = proc_open($command, $descriptors, $pipes);
+        // Suppress the PHP warning that is emitted before proc_open returns false
+        // when the binary doesn't exist, so that our is_resource() check works
+        // reliably (Laravel's error handler converts warnings to ErrorException).
+        error_clear_last();
+        $process = @proc_open($command, $descriptors, $pipes);
 
         if (! is_resource($process)) {
-            throw new RuntimeException('Failed to start process: ' . $this->executable());
+            $err = error_get_last();
+            throw new RuntimeException(
+                'Failed to start process: ' . $this->executable()
+                . ($err !== null ? ' – ' . $err['message'] : '')
+            );
         }
 
-        fwrite($pipes[0], $prompt);
-        fclose($pipes[0]);
+        // Use non-blocking I/O and interleave stdin writes with stdout reads to
+        // prevent a deadlock / broken-pipe when the prompt is larger than the
+        // OS pipe buffer (~64 KB on most systems).
+        stream_set_blocking($pipes[0], false);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
 
-        $output = stream_get_contents($pipes[1]);
+        $written   = 0;
+        $total     = strlen($prompt);
+        $output    = '';
+        $stdinOpen = true;
+
+        while ($stdinOpen || ! feof($pipes[1])) {
+            $read   = [$pipes[1], $pipes[2]];
+            $write  = $stdinOpen ? [$pipes[0]] : [];
+            $except = null;
+
+            if (stream_select($read, $write, $except, self::STREAM_SELECT_TIMEOUT) === false) {
+                break;
+            }
+
+            // Write the next chunk to stdin.
+            if ($stdinOpen && ! empty($write)) {
+                $chunk = substr($prompt, $written, self::CHUNK_SIZE);
+                // Use @ to suppress the PHP "Broken pipe" warning that is emitted
+                // before fwrite() returns false when the subprocess closes stdin early.
+                $bytes = @fwrite($pipes[0], $chunk);
+                if ($bytes === false) {
+                    // Subprocess closed its stdin early (e.g. broken pipe); stop writing.
+                    fclose($pipes[0]);
+                    $stdinOpen = false;
+                } else {
+                    $written += $bytes;
+                    if ($written >= $total) {
+                        fclose($pipes[0]);
+                        $stdinOpen = false;
+                    }
+                }
+            }
+
+            // Drain stdout and stderr so the subprocess never blocks on its writes.
+            foreach ($read as $pipe) {
+                if ($pipe === $pipes[1]) {
+                    $chunk = fread($pipe, self::CHUNK_SIZE);
+                    if ($chunk !== false) {
+                        $output .= $chunk;
+                    }
+                } else {
+                    fread($pipe, self::CHUNK_SIZE);
+                }
+            }
+        }
+
+        if ($stdinOpen) {
+            fclose($pipes[0]);
+        }
         fclose($pipes[1]);
-        // Drain stderr so the child process never blocks waiting for the parent to read it.
+        // Switch stderr back to blocking so stream_get_contents drains it fully.
+        stream_set_blocking($pipes[2], true);
         stream_get_contents($pipes[2]);
         fclose($pipes[2]);
 
         proc_close($process);
 
-        return $output !== false && $output !== '' ? $output : 'No response';
+        return $output !== '' ? $output : 'No response';
+    }
+
+    /**
+     * Maximum number of bytes of the raw trace that will be included in the
+     * prompt.  Keeping this well below typical CLI-tool limits avoids broken-pipe
+     * errors on very large log files.  Subclasses may override as needed.
+     */
+    protected function maxInputBytes(): int
+    {
+        return 32768;
     }
 
     protected function buildPrompt(string $trace): string
     {
+        if (strlen($trace) > $this->maxInputBytes()) {
+            $trace = substr($trace, 0, $this->maxInputBytes()) . "\n[... truncated ...]";
+        }
+
         return <<<PROMPT
 You are a Laravel debugging expert.
 
