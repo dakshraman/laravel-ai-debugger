@@ -123,9 +123,23 @@ abstract class BaseDriver implements AIInterface
         stream_get_contents($pipes[2]);
         fclose($pipes[2]);
 
-        proc_close($process);
+        $exitCode = proc_close($process);
 
-        return $output !== '' ? $output : 'No response';
+        if ($output !== '') {
+            return $output;
+        }
+
+        // On PHP < 8.3, proc_open() returns a live resource even when the binary
+        // does not exist (the fork succeeds; execvp failure is deferred to the child).
+        // The child process exits with code 127 (POSIX "command not found").
+        // PHP 8.3+ returns false from proc_open() directly, which is caught above by
+        // the is_resource() guard.  This check ensures consistent behaviour across
+        // all supported PHP versions.
+        if ($exitCode === 127) {
+            throw new RuntimeException('Failed to start process: ' . $this->executable() . ' (command not found)');
+        }
+
+        return 'No response';
     }
 
     /**
