@@ -1,6 +1,7 @@
 # laravel-ai-debugger
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/dakshraman/laravel-ai-debugger.svg?style=flat-square)](https://packagist.org/packages/dakshraman/laravel-ai-debugger)
+[![Tests](https://github.com/dakshraman/laravel-ai-debugger/actions/workflows/tests.yml/badge.svg)](https://github.com/dakshraman/laravel-ai-debugger/actions/workflows/tests.yml)
 [![License](https://img.shields.io/packagist/l/dakshraman/laravel-ai-debugger.svg?style=flat-square)](LICENSE)
 
 A local-first AI debugging assistant for Laravel using CLI tools like **Claude**, **Gemini CLI**, **GitHub Copilot**, and **OpenAI Codex**. Zero API cost — everything runs through your locally installed CLI tools.
