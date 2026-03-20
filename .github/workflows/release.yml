@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*.*.*"
+      - "V*"
   workflow_dispatch:
     inputs:
       version:
@@ -29,10 +30,18 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            RAW_TAG="${{ github.event.inputs.version }}"
           else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            RAW_TAG="${GITHUB_REF#refs/tags/}"
           fi
+          # Normalize to lowercase v prefix, stripping any dot after the leading letter
+          # e.g. V.1.0.0 → v1.0.0, V1.0.0 → v1.0.0, v1.0.0 → v1.0.0
+          NORMALIZED=$(echo "$RAW_TAG" | sed -E 's/^[Vv]\.?/v/')
+          if ! echo "$NORMALIZED" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Tag '$RAW_TAG' does not resolve to a valid semver version (got '$NORMALIZED'). Use format v1.2.3."
+            exit 1
+          fi
+          echo "tag=$NORMALIZED" >> "$GITHUB_OUTPUT"
 
       - name: Create tag (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'
